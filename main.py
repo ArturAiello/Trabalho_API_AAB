@@ -64,7 +64,7 @@ class BuscaPartesCorpo(BaseModel):
 
 # Instanciando o FastAPI com dependência global de autenticação
 app = FastAPI(
-    title="Trabalho API",
+    title="Trabalho_API_AAB",
     description="""
 API para busca de informações sobre:
 - **Grau de Ferimento:** Recebe uma pergunta e retorna uma análise quanto ao grau do ferimento.
