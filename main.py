@@ -1,19 +1,15 @@
 import os
 import logging
 import pandas as pd
-import logging
 from enum import Enum
 
 from fastapi import FastAPI, HTTPException, Depends, Header, status
-from fastapi import HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
 
 # Configuração de logging
-logging.basicConfig(
-    level=logging.INFO, format="[%(levelname)s] %(asctime)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s: %(message)s")
 logger = logging.getLogger("TrabalhoAPI")
 
 # Carrega variáveis de ambiente
@@ -23,21 +19,16 @@ load_dotenv()
 API_TOKEN = "123"
 
 
-def verifica_token(
-    api_token: str = Header(..., description="Token de autenticação da API"),
-):
+def verifica_token(api_token: str = Header(..., description="Token de autenticação da API")):
     """
     Dependency que verifica se o token enviado no header é válido.
     """
     if api_token != API_TOKEN:
         logger.error("Token inválido")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
     return api_token
 
 
-# Função para chamar a API Groq e processar a requisição
 def executar_prompt(prompt: str) -> str:
     """
     Executa um prompt via API Groq e retorna a resposta.
@@ -49,7 +40,6 @@ def executar_prompt(prompt: str) -> str:
         str: Resposta gerada pela API Groq.
     """
     try:
-        # Obtém a chave da API Groq a partir do .env
         groq_api_key = os.getenv("GROQ_API_KEY")
         if not groq_api_key:
             raise ValueError("Chave da API Groq não encontrada no .env")
@@ -65,13 +55,11 @@ def executar_prompt(prompt: str) -> str:
         logger.error(f"Erro ao executar prompt: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao processar requisição",
+            detail="Erro ao processar requisição"
         )
 
 
 # Modelos para validação dos payloads
-
-
 class BuscaGrauFerimento(BaseModel):
     pergunta: str
 
@@ -80,7 +68,7 @@ class BuscaPartesCorpo(BaseModel):
     pergunta: str
 
 
-# Instanciando o FastAPI com dependência global de autenticação
+# Instanciando a aplicação FastAPI
 app = FastAPI(
     title="Trabalho_API_AAB",
     description="""
@@ -99,8 +87,6 @@ API para busca de informações sobre:
 
 
 # Endpoint: Busca – Grau de Ferimento (POST)
-
-
 @app.post("/busca/grau-ferimento", summary="Busca grau de ferimento")
 def busca_grau_ferimento(dados: BuscaGrauFerimento):
     logger.info(f"Recebida requisição de grau de ferimento: {dados.pergunta}")
@@ -114,7 +100,6 @@ def busca_grau_ferimento(dados: BuscaGrauFerimento):
         logger.error(f"Erro ao processar dados do dataset: {e}")
         raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
 
-    # Se desejar, combine os dados com a API do Groq para obter uma análise mais detalhada:
     prompt = (
         f"Utilize os dados do dataset do Kaggle e a seguinte informação: {partes}, "
         f"para responder: {dados.pergunta}. "
@@ -132,15 +117,12 @@ def busca_partes_corpo(dados: BuscaPartesCorpo):
     if df_kaggle is None:
         raise HTTPException(status_code=500, detail="Dataset do Kaggle não carregado")
 
-    # Exemplo: Suponha que o dataset possua uma coluna 'body_part'
-    # e que você deseje retornar a contagem das ocorrências de cada parte do corpo.
     try:
         partes = df_kaggle["body_part"].value_counts().to_dict()
     except Exception as e:
         logger.error(f"Erro ao processar dados do dataset: {e}")
         raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
 
-    # Se desejar, combine os dados com a API do Groq para obter uma análise mais detalhada:
     prompt = (
         f"Utilize os dados do dataset do Kaggle e a seguinte informação: {partes}, "
         f"para responder: {dados.pergunta}. "
@@ -150,11 +132,12 @@ def busca_partes_corpo(dados: BuscaPartesCorpo):
     return {"resultado": resposta, "dados": partes}
 
 
+# Carregamento do dataset do Kaggle
 DATA_PATH = "data/osha_accident_injury_data.csv"
 
 try:
     df_kaggle = pd.read_csv(DATA_PATH)
-    logging.info("Dataset do Kaggle carregado com sucesso!")
+    logger.info("Dataset do Kaggle carregado com sucesso!")
 except Exception as e:
-    logging.error(f"Erro ao carregar o dataset do Kaggle: {e}")
+    logger.error(f"Erro ao carregar o dataset do Kaggle: {e}")
     df_kaggle = None
