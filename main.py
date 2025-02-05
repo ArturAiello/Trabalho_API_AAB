@@ -8,14 +8,11 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
 
-# Configuração de logging
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s: %(message)s")
 logger = logging.getLogger("TrabalhoAPI")
 
-# Carrega variáveis de ambiente
 load_dotenv()
 
-# Token da API para autenticação (simples)
 API_TOKEN = "123"
 
 
@@ -59,7 +56,6 @@ def executar_prompt(prompt: str) -> str:
         )
 
 
-# Modelos para validação dos payloads
 class BuscaGrauFerimento(BaseModel):
     pergunta: str
 
@@ -68,7 +64,6 @@ class BuscaPartesCorpo(BaseModel):
     pergunta: str
 
 
-# Instanciando a aplicação FastAPI
 app = FastAPI(
     title="Trabalho_API_AAB",
     description="""
@@ -132,7 +127,6 @@ def busca_partes_corpo(dados: BuscaPartesCorpo):
     return {"resultado": resposta, "dados": partes}
 
 
-# Carregamento do dataset do Kaggle
 DATA_PATH = "data/osha_accident_injury_data.csv"
 
 try:
