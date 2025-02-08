@@ -65,7 +65,7 @@ Certifique-se de que a pasta venv/ esteja listada no arquivo .gitignore para evi
 
 - Após clonar o repositório e configurar o ambiente, instale as bibliotecas necessárias: 
  
-```bash
+   ```bash
    pip install fastapi uvicorn python-dotenv groq
 
 - Para gerar o arquivo de dependências: 
@@ -110,7 +110,7 @@ Certifique-se de que a pasta venv/ esteja listada no arquivo .gitignore para evi
    ```bash
    {
   "pergunta": "Descreva os níveis de ferimento para uma queda de altura."
-}
+   }
 
 - Descrição: 
 Recebe uma pergunta e utiliza a API do Groq para determinar o grau do ferimento.
@@ -126,7 +126,7 @@ Recebe uma pergunta e utiliza a API do Groq para determinar o grau do ferimento.
    ```bash
    {
   "pergunta": "Quais partes do corpo são mais afetadas em acidentes?"
-}
+   }
 
 - Descrição: 
 Realiza uma busca considerando dados do dataset do Kaggle (simulado) e utiliza a API do Groq para processar a resposta.
