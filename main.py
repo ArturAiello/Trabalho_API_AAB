@@ -80,17 +80,28 @@ API para busca de informações sobre:
     dependencies=[Depends(verifica_token)],
 )
 
+DATA_PATH = "osha-accident-and-injury-data-1517/OSHA HSE DATA_ALL ABSTRACTS 15-17_FINAL.csv"
+def dataset_return(): # Função para carregar o dataset do Kaggle
+    try:
+        df_kaggle = pd.read_csv(DATA_PATH)
+        logger.info("Dataset do Kaggle carregado com sucesso!")
+    except Exception as e:
+        logger.error(f"Erro ao carregar o dataset do Kaggle: {e}")
+        df_kaggle = None
+    return df_kaggle # Retorna o dataset carregado
 
 # Endpoint: Busca – Grau de Ferimento (POST)
 @app.post("/busca/grau-ferimento", summary="Busca grau de ferimento")
 def busca_grau_ferimento(dados: BuscaGrauFerimento):
     logger.info(f"Recebida requisição de grau de ferimento: {dados.pergunta}")
 
+    df_kaggle = dataset_return()
+
     if df_kaggle is None:
         raise HTTPException(status_code=500, detail="Dataset do Kaggle não carregado")
 
     try:
-        partes = df_kaggle["degree_of_injury"].value_counts().to_dict()
+        partes = df_kaggle["Degree of Injury"].value_counts().to_dict()
     except Exception as e:
         logger.error(f"Erro ao processar dados do dataset: {e}")
         raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
@@ -109,11 +120,13 @@ def busca_grau_ferimento(dados: BuscaGrauFerimento):
 def busca_partes_corpo(dados: BuscaPartesCorpo):
     logger.info(f"Recebida requisição de partes do corpo afetadas: {dados.pergunta}")
 
+    df_kaggle = dataset_return()
+
     if df_kaggle is None:
         raise HTTPException(status_code=500, detail="Dataset do Kaggle não carregado")
 
     try:
-        partes = df_kaggle["body_part"].value_counts().to_dict()
+        partes = df_kaggle["Part of Body"].value_counts().to_dict()
     except Exception as e:
         logger.error(f"Erro ao processar dados do dataset: {e}")
         raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
@@ -127,11 +140,3 @@ def busca_partes_corpo(dados: BuscaPartesCorpo):
     return {"resultado": resposta, "dados": partes}
 
 
-DATA_PATH = "data/osha_accident_injury_data.csv"
-
-try:
-    df_kaggle = pd.read_csv(DATA_PATH)
-    logger.info("Dataset do Kaggle carregado com sucesso!")
-except Exception as e:
-    logger.error(f"Erro ao carregar o dataset do Kaggle: {e}")
-    df_kaggle = None
