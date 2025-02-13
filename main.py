@@ -1,77 +1,31 @@
 import os
 import logging
-import pandas as pd
-from enum import Enum
-
-from fastapi import FastAPI, HTTPException, Depends, Header, status
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
-from groq import Groq
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from utils import limiter
+from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s: %(message)s")
-logger = logging.getLogger("TrabalhoAPI")
+from utils import verifica_token, obter_logger_e_configuracao
+from routers import llm_router
 
+# Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
-API_TOKEN = "123"
-
-
-def verifica_token(api_token: str = Header(..., description="Token de autenticação da API")):
-    """
-    Dependency que verifica se o token enviado no header é válido.
-    """
-    if api_token != API_TOKEN:
-        logger.error("Token inválido")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
-    return api_token
-
-
-def executar_prompt(prompt: str) -> str:
-    """
-    Executa um prompt via API Groq e retorna a resposta.
-
-    Args:
-        prompt (str): O texto do prompt a ser processado.
-
-    Returns:
-        str: Resposta gerada pela API Groq.
-    """
-    try:
-        groq_api_key = os.getenv("GROQ_API_KEY")
-        if not groq_api_key:
-            raise ValueError("Chave da API Groq não encontrada no .env")
-        client = Groq(api_key=groq_api_key)
-        chat_completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model="deepseek-r1-distill-llama-70b",
-        )
-        resposta = chat_completion.choices[0].message.content
-        logger.info("Resposta do Groq obtida com sucesso")
-        return resposta
-    except Exception as e:
-        logger.error(f"Erro ao executar prompt: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao processar requisição"
-        )
-
-
-class BuscaGrauFerimento(BaseModel):
-    pergunta: str
-
-
-class BuscaPartesCorpo(BaseModel):
-    pergunta: str
-
+# Configura o logger da aplicação
+logger = obter_logger_e_configuracao()
 
 app = FastAPI(
-    title="Trabalho_API_AAB",
+    title="Trabalho_API_ACD",
     description="""
 API para busca de informações sobre:
 - **Grau de Ferimento:** Recebe uma pergunta e retorna uma análise quanto ao grau do ferimento.
-- **Partes do Corpo Afetadas:** Recebe uma pergunta e utiliza dados do dataset do Kaggle (simulado) para identificar partes do corpo afetadas, com processamento via API Groq.
-    
-**Observações de segurança:**  
+- **Partes do Corpo Afetadas:** Recebe uma pergunta e utiliza dados do dataset do Kaggle (simulado) para identificar partes do corpo afetadas,
+  com processamento via API Groq.
+
+**Observações de segurança:**
 - Autenticação via token simples (API_TOKEN).
 - Validação dos dados com Pydantic.
 - Logs e tratamento de erros com códigos HTTP apropriados.
@@ -80,63 +34,31 @@ API para busca de informações sobre:
     dependencies=[Depends(verifica_token)],
 )
 
-DATA_PATH = "osha-accident-and-injury-data-1517/OSHA HSE DATA_ALL ABSTRACTS 15-17_FINAL.csv"
-def dataset_return(): # Função para carregar o dataset do Kaggle
-    try:
-        df_kaggle = pd.read_csv(DATA_PATH)
-        logger.info("Dataset do Kaggle carregado com sucesso!")
-    except Exception as e:
-        logger.error(f"Erro ao carregar o dataset do Kaggle: {e}")
-        df_kaggle = None
-    return df_kaggle # Retorna o dataset carregado
+# Permita apenas origens específicas (substitua "https://example.com" pelas origens autorizadas)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://example.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Endpoint: Busca – Grau de Ferimento (POST)
-@app.post("/busca/grau-ferimento", summary="Busca grau de ferimento")
-def busca_grau_ferimento(dados: BuscaGrauFerimento):
-    logger.info(f"Recebida requisição de grau de ferimento: {dados.pergunta}")
-
-    df_kaggle = dataset_return()
-
-    if df_kaggle is None:
-        raise HTTPException(status_code=500, detail="Dataset do Kaggle não carregado")
-
-    try:
-        partes = df_kaggle["Degree of Injury"].value_counts().to_dict()
-    except Exception as e:
-        logger.error(f"Erro ao processar dados do dataset: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
-
-    prompt = (
-        f"Utilize os dados do dataset do Kaggle e a seguinte informação: {partes}, "
-        f"para responder: {dados.pergunta}. "
-        "Forneça uma análise resumida sobre graus de ferimento mais comuns."
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        return response
+    
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+        return JSONResponse(
+        status_code=429,
+        content={"detail": "Too Many Requests"}
     )
-    resposta = executar_prompt(prompt)
-    return {"resultado": resposta, "dados": partes}
 
+app.add_middleware(SecurityHeadersMiddleware)
 
-# Endpoint: Buscas – Partes do Corpo Afetadas (POST)
-@app.post("/busca/partes-corpo-afetadas", summary="Busca partes do corpo afetadas")
-def busca_partes_corpo(dados: BuscaPartesCorpo):
-    logger.info(f"Recebida requisição de partes do corpo afetadas: {dados.pergunta}")
-
-    df_kaggle = dataset_return()
-
-    if df_kaggle is None:
-        raise HTTPException(status_code=500, detail="Dataset do Kaggle não carregado")
-
-    try:
-        partes = df_kaggle["Part of Body"].value_counts().to_dict()
-    except Exception as e:
-        logger.error(f"Erro ao processar dados do dataset: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao processar o dataset")
-
-    prompt = (
-        f"Utilize os dados do dataset do Kaggle e a seguinte informação: {partes}, "
-        f"para responder: {dados.pergunta}. "
-        "Forneça uma análise resumida sobre as partes do corpo mais afetadas."
-    )
-    resposta = executar_prompt(prompt)
-    return {"resultado": resposta, "dados": partes}
-
-
+# Inclui os endpoints definidos no roteador
+app.include_router(llm_router.router)

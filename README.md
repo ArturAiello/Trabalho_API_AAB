@@ -1,187 +1,170 @@
 # Trabalho API
 
-Esta API foi desenvolvida para realizar buscas relacionadas a **grau de ferimento** e **partes do corpo afetadas** em acidentes, utilizando a API do Groq para processamento dos dados (com base, de forma simulada, no dataset do Kaggle [OSHA Accident and Injury Data 2015-2017](https://www.kaggle.com/datasets/ruqaiyaship/osha-accident-and-injury-data-1517/data)).  
-
-A API foi construída com **FastAPI** e utiliza **Pydantic** para validação dos dados, além de contar com autenticação simples, logging, tratamento de erros e documentação automática via Swagger.
+construída com FastAPI para busca e análise de informações relativas a acidentes, utilizando dados do dataset do Kaggle (simulado) e a API Groq para processamento de linguagem. A API conta com medidas de segurança aprimoradas, como autenticação (token simples e JWT), rate limiting, cabeçalhos de segurança e configuração de CORS.  
 
 ---
 
 ## Sumário
 
+- [Descrição do Projeto](#descrição-do-projeto)
+- [Funcionalidades](#funcionalidades)
 - [Requisitos](#requisitos)
-- [Configuração do Ambiente](#configuração-do-ambiente)
 - [Instalação](#instalação)
-- [Execução da API](#execução-da-api)
+- [Configuração do Ambiente](#configuração-do-ambiente)
+- [Executando a API](#executando-a-api)
 - [Endpoints](#endpoints)
-- [Testes com Postman e Swagger](#testes-com-postman-e-swagger)
-- [Contribuição e Versionamento](#contribuição-e-versionamento)
+- [Testes](#testes)
+- [Medidas de Segurança](#medidas-de-segurança)
+- [Contribuição](#contribuição)
 - [Licença](#licença)
+
+
+---
+
+## Descrição do Projeto
+
+Esta API oferece dois principais endpoints para busca:
+- **Grau de Ferimento:** Retorna uma análise sobre a frequência dos graus de ferimento com base em uma pergunta.
+- **Partes do Corpo Afetadas:** Retorna uma análise sobre as partes do corpo mais afetadas com base em uma pergunta.
+
+A API utiliza dados extraídos de um CSV do Kaggle e integra com a API Groq para gerar respostas com análises resumidas, sempre em português brasileiro.
+
+---
+
+## Funcionalidades
+
+- **Autenticação:**  
+  - Verificação via token simples (definido no arquivo `.env`).
+  - Suporte opcional para JWT (via prefixo `Bearer`).
+- **Rate Limiting:**  
+  - Utiliza a biblioteca SlowAPI para limitar o número de requisições (5 requisições por minuto por endpoint).
+- **Segurança Adicional:**  
+  - Configuração de CORS para permitir apenas origens autorizadas.
+  - Middleware de cabeçalhos de segurança (X-Content-Type-Options, X-Frame-Options e X-XSS-Protection).
+- **Validação de Dados:**  
+  - Uso do Pydantic para validação dos modelos de entrada.
+- **Logging:**  
+  - Registro detalhado de requisições e erros para monitoramento e auditoria.
+- **Integração com API Groq:**  
+  - Processamento de prompts para gerar respostas com análises.
 
 ---
 
 ## Requisitos
 
-- Python 3.8 ou superior
-- Git e GitHub Desktop (para controle de versão e clonagem)
-- [Pip] (https://pip.pypa.io/)
-- Biblioteca [Ruff](https://docs.astral.sh/ruff/) para formatação automática (opcional)
+- **Python:** 3.8 ou superior
+- **Dependências:** As listadas no arquivo [requirements.txt](./requirements.txt)
 
 ---
 
-## Configuração do Ambiente
+## Instalação
 
 1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/seu_usuario/Trabalho_API_ACD.git
+   cd Trabalho_API_ACD
 
-   - Utilize o GitHub Desktop para clonar o repositório `Trabalho API` para sua máquina local.
 
 2. **Crie e ative o ambiente virtual:**
 
+- Windows:
    ```bash
    python -m venv venv
-
-- No Windows: 
-   ```bash
    venv\Scripts\activate
- 
-- No Linux/Mac: 
+
+- Linux/Mac:
    ```bash
+   python3 -m venv venv
    source venv/bin/activate
 
 3. **Instale as dependências:**
 
    ```bash
    pip install -r requirements.txt
+   
+## Configuração do Ambiente
 
-4. **Configure o arquivo .env:**
+1. **Arquivo .env:**
+Crie um arquivo chamado .env na raiz do projeto e configure as seguintes variáveis:
 
-Crie um arquivo chamado .env na raiz do projeto e adicione a sua chave da API Groq: GROQ_API_KEY=_sua_chave_aqui_
- 
-5. **Verifique se o .gitignore está configurado:**
-Certifique-se de que a pasta venv/ esteja listada no arquivo .gitignore para evitar o versionamento desnecessário.
+GROQ_API_KEY=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
+API_TOKEN="123"
+SECRET_KEY="minha_chave_secreta"  # Usada para a criação e validação de tokens JWT (opcional)
 
----
+2. **Proteção do .env:**
+- Certifique-se de que o arquivo .env esteja incluído no .gitignore (conforme definido no arquivo .gitmore).
 
-## Instalação
+## Executando a API
 
-- Após clonar o repositório e configurar o ambiente, instale as bibliotecas necessárias: 
- 
-   ```bash
-   pip install fastapi uvicorn python-dotenv groq
-
-- Para gerar o arquivo de dependências: 
- 
-   ```bash
-   pip freeze > requirements.txt
-
-
----
-
-## Execução da API
-**Modo de Desenvolvimento**
-
-- Execute a API com o Uvicorn (servidor ASGI):
+Para iniciar o servidor de desenvolvimento, execute:
 
    ```bash
    uvicorn main:app --reload
-
-- A flag --reload garante que o servidor seja reiniciado a cada modificação no código.
-
-**Modo de Produção**
-
-- Em produção, utilize:
-
-   ```bash
-   uvicorn main:app --host 0.0.0.0 --port 80
-
-- Dica: Considere utilizar um servidor de produção como Gunicorn com Uvicorn Workers para melhor performance.
-
----
+   
+- A API estará disponível em: http://127.0.0.1:8000
 
 ## Endpoints
-
-1. **Busca – Grau de Ferimento**
-
+1. **Busca Grau de Ferimento**
 - URL: /busca/grau-ferimento
-
 - Método: POST
- 
 - Payload (JSON):
 
-   ```bash
-   {
-  "pergunta": "Descreva os níveis de ferimento para uma queda de altura."
-   }
+{
+  "pergunta": "Qual é a incidência de ferimentos graves em acidentes de trabalho?"
+}
 
-- Descrição: 
-Recebe uma pergunta e utiliza a API do Groq para determinar o grau do ferimento.
+Descrição: Retorna uma análise com base na frequência dos graus de ferimento presentes no dataset.
 
-2. **Busca – Parte do Corpo Afetadas**
-
+2. **Busca Partes do Corpo Afetadas**
 - URL: /busca/partes-corpo-afetadas
-
 - Método: POST
-
 - Payload (JSON):
 
-   ```bash
-   {
-  "pergunta": "Quais partes do corpo são mais afetadas em acidentes?"
-   }
+{
+  "pergunta": "Quais partes do corpo são mais afetadas em acidentes de trânsito?"
+}
 
-- Descrição: 
-Realiza uma busca considerando dados do dataset do Kaggle (simulado) e utiliza a API do Groq para processar a resposta.
+Descrição: Retorna uma análise com base na frequência das partes do corpo afetadas presentes no dataset.
 
-Nota:
-Em todas as requisições, inclua no header o token de autenticação:
+Observação: Todos os endpoints requerem um header de autenticação chamado api_token com o valor definido no .env (ou um token JWT com prefixo Bearer ).
 
-   ```bash
-   api_token: 123
-
----
-
-## Testes com Postman e Swagger
-
+## Testes
 - Swagger UI:
+Acesse http://127.0.0.1:8000/docs para visualizar a documentação interativa e testar os endpoints.
 
-Ao iniciar a API, acesse http://127.0.0.1:8000/docs para visualizar e testar os endpoints.
+- Postman:
+Importe a coleção ou realize chamadas para os endpoints utilizando o header api_token.
 
-- Postman: 
-   - Crie uma nova coleção e importe o arquivo openapi.json (que pode ser baixado da URL /openapi.json da API) para testar os endpoints.
-   - Realize chamadas passando o header api_token com o valor 123.
+## Medidas de Segurança
 
----
+1. **Autenticação:**
+- Token simples definido no .env e suporte opcional para JWT.
 
-## Contribuição e Versionamento
+2. **Rate Limiting:**
+- Configurado com SlowAPI (5 requisições/minuto por endpoint).
 
-- Repositório no GitHub:
-Realize commits frequentes com mensagens descritivas e utilize branches para desenvolver novas funcionalidades.
+3. **CORS:**
+- Permite apenas origens autorizadas (configurar a lista de origens conforme necessidade).
 
-- Versionamento dos Endpoints:
-Se necessário, implemente versionamento (por exemplo, /v1/busca/grau-ferimento) para manter compatibilidade com versões anteriores.
+4. **Cabeçalhos de Segurança:**
+- Middleware que adiciona cabeçalhos HTTP para proteção contra ataques comuns.
 
-- Ferramenta de Formatação:
-Utilize o [Ruff](https://docs.astral.sh/ruff/) para garantir a formatação do código e a verificação de sintaxe.
+5. **HTTPS:**
+- Em produção, recomenda-se executar a API sob HTTPS (configuração via Uvicorn ou proxy reverso).
 
----
+## Contribuição
+1. **Faça um fork do repositório.**
+2. **Crie uma branch com a sua feature: git checkout -b minha-feature.**
+3. **Realize commit das alterações: git commit -m "Minha nova feature".**
+4. **Envie para o branch: git push origin minha-feature.**
+5. **Abra um Pull Request.**
 
-## Licança
+## Licença
+Este projeto está licenciado sob a Licença MIT.
 
-Este projeto está licenciado sob a [Licença Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).
+##Contato
+Para dúvidas ou suporte, entre em contato com trabalho_acd@aulaapi.com.
 
----
-
-## Observações Finais
-
-- Segurança:
-   - Não commit a chave da API (GROQ_API_KEY) no repositório público. Utilize variáveis de ambiente.
-   
-   - Em produção, utilize HTTPS para criptografar as requisições.
-
-- Logs:
-O sistema de logging registra informações importantes sobre as requisições e erros. Verifique os logs para monitorar o funcionamento da API.
-
-
----
 
 ## Conclusão
 
